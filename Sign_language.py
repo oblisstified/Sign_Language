@@ -8,6 +8,22 @@ import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 
+def get_landmark_data(image):
+    data_aux = []
+    img_rgb = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+
+    results = hands.process(img_rgb)
+    
+    #each landmark has its own x,y value
+    for hand_landmarks in results.multi_hand_landmarks:
+        for i in range(len(hand_landmarks.landmark)):
+            x = hand_landmarks.landmark[i].x
+            y = hand_landmarks.landmark[i].y
+            data_aux.append([x,y])
+    return data_aux
+
+
+
 vid = cv2.VideoCapture(0)
 img_counter = 0
 
@@ -26,20 +42,8 @@ for dir_ in os.listdir(ASSETS_DIR):
     for img_path in os.listdir(os.path.join(ASSETS_DIR,dir_)):
         data_aux = []
         img = cv2.imread(os.path.join(ASSETS_DIR,dir_,img_path))
-        img_rgb = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
-
-        results = hands.process(img_rgb)
-        #each landmark has its own x,y value
-        for hand_landmarks in results.multi_hand_landmarks:
-            for i in range(len(hand_landmarks.landmark)):
-                x = hand_landmarks.landmark[i].x
-                y = hand_landmarks.landmark[i].y
-                data_aux.append([x,y])
-
-            hand_landmarks_data.append(data_aux)
-            labels.append(ord(dir_)-66) #change to -65 for other than binary
-for i in range(len(hand_landmarks_data)):
-    print(len(hand_landmarks_data[i]),labels[i])
+        hand_landmarks_data.append(get_landmark_data(img))
+        labels.append(ord(dir_)-66) #change to -65 for other than binary
 
 data = tf.data.Dataset.from_tensor_slices((hand_landmarks_data, labels)).batch(32).shuffle(True)
 
@@ -63,28 +67,7 @@ model = keras.Sequential([
 
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 model.summary()
-model.fit(train_data ,epochs=40, validation_data=val_data)
-
-# image = cv2.imread('Sign_Language/test_image2.jpg')
-# img_rgb = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-# data_test=[]
-# results = hands.process(img_rgb)
-# #each landmark has its own x,y value
-# for hand_landmarks in results.multi_hand_landmarks:
-#     for i in range(len(hand_landmarks.landmark)):
-#         x = hand_landmarks.landmark[i].x
-#         y = hand_landmarks.landmark[i].y
-#         data_test.append([x,y])
-# single_sample = np.expand_dims(data_test, axis=0) 
-# print(np.array(single_sample).shape)
-# yhat = model.predict(np.array(single_sample))
-# if yhat > 0.5: 
-#     print(f'Predicted class is C')
-# else:
-#     print(f'Predicted class is B')
-
-
-
+model.fit(train_data ,epochs=400, validation_data=val_data)
 
 
 
@@ -97,24 +80,19 @@ while(True):
     result = hands.process(framergb)
     # Post-process the result
     if result.multi_hand_landmarks:
-        landmarks = []
-        for handslms in result.multi_hand_landmarks:
-            for lm in handslms.landmark:
-                lmx = int(lm.x * x)
-                lmy = int(lm.y * y)
-                landmarks.append([lmx, lmy])
-                # Drawing landmarks on frames
-            mpDraw.draw_landmarks(frame, handslms, mp_hands.HAND_CONNECTIONS)
-        single_sample = np.expand_dims(landmarks, axis=0) 
+
+        hand_landmarks = get_landmark_data(frame)
+      
+        mpDraw.draw_landmarks(frame, result.multi_hand_landmarks[0], mp_hands.HAND_CONNECTIONS)
+        single_sample = np.expand_dims(hand_landmarks, axis=0) 
         yhat = model.predict(np.array(single_sample))
         print(yhat)
-        if yhat > 0.99: 
+        if yhat > 0.999: 
             print(f'Predicted class is C')
-        elif yhat<0.01:
+        elif yhat<0.001:
             print(f'Predicted class is B')
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
-        print("hello")
         break
 
     if cv2.waitKey(1) & 0xFF == ord('s'):
