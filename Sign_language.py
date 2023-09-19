@@ -22,6 +22,16 @@ def get_landmark_data(image):
             data_aux.append([x,y])
     return data_aux
 
+def make_label(letter):
+    label = [0,0,0]
+    if ord(letter)-65 == 1:
+        label[0]+=1
+    elif ord(letter)-65 == 2:
+        label[1]+=1
+    if ord(letter)-65 == 11:
+        label[2]+=1
+    return label
+
 
 
 vid = cv2.VideoCapture(0)
@@ -43,7 +53,7 @@ for dir_ in os.listdir(ASSETS_DIR):
         data_aux = []
         img = cv2.imread(os.path.join(ASSETS_DIR,dir_,img_path))
         hand_landmarks_data.append(get_landmark_data(img))
-        labels.append(ord(dir_)-66) #change to -65 for other than binary
+        labels.append(make_label(dir_)) #change to -65 for other than binary
 
 data = tf.data.Dataset.from_tensor_slices((hand_landmarks_data, labels)).batch(32).shuffle(True)
 
@@ -62,10 +72,10 @@ model = keras.Sequential([
     layers.Dropout(0.2),
     layers.Dense(64, activation='relu'),
     layers.Dropout(0.2),
-    layers.Dense(1, activation='sigmoid')  
+    layers.Dense(3, activation='softmax')  
 ])
 
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 model.summary()
 model.fit(train_data ,epochs=400, validation_data=val_data)
 
@@ -76,22 +86,22 @@ while(True):
     x,y,c = frame.shape
       
     framergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    # Get hand landmark prediction
-    result = hands.process(framergb)
-    # Post-process the result
-    if result.multi_hand_landmarks:
 
+    result = hands.process(framergb)
+
+    if result.multi_hand_landmarks:
         hand_landmarks = get_landmark_data(frame)
-      
         mpDraw.draw_landmarks(frame, result.multi_hand_landmarks[0], mp_hands.HAND_CONNECTIONS)
         single_sample = np.expand_dims(hand_landmarks, axis=0) 
         yhat = model.predict(np.array(single_sample))
-        print(yhat)
-        if yhat > 0.999: 
-            print(f'Predicted class is C')
-        elif yhat<0.001:
-            print(f'Predicted class is B')
+        print(yhat.argmax())
+        # if yhat > 0.999: 
+        #     print(f'Predicted class is C')
+        # elif yhat<0.001:
+        #     print(f'Predicted class is B')
+
     cv2.imshow('frame', frame)
+
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
