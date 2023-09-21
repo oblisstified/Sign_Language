@@ -31,7 +31,7 @@ def make_label(letter):
     return label
 
 black_screen = cv2.imread('Sign_Language/black_screen.jpg')
-number_of_letters = 19
+number_of_letters = 26
 vid = cv2.VideoCapture(0)
 img_counter = 0
 
@@ -103,12 +103,12 @@ while(True):
                 count+=1
             else:
                 count=0
-            if count == 15:
-                word += current_letter   
-                  
-            cv2.putText(frame,word,(100,100),cv2.FONT_HERSHEY_SIMPLEX,1,(255,0,255),2)
-            previous_letter = current_letter
+            if count >= 15:
+                  cv2.putText(frame,current_letter,(100,100),cv2.FONT_HERSHEY_SIMPLEX,1,(255,0,255),2)
 
+                  
+            previous_letter = current_letter
+   
     cv2.imshow('frame', frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -117,7 +117,7 @@ while(True):
     if cv2.waitKey(1) & 0xFF == ord('s'):
         
         img_name = f"test_image{img_counter}.jpg"
-        cv2.imwrite('Sign_Language/Assets/T/' + img_name,frame)
+        cv2.imwrite('Sign_Language/Assets/Z/' + img_name,frame)
         img_counter+=1
         print("image saved")
 vid.release()
